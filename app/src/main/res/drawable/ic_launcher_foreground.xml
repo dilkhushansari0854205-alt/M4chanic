@@ -1,0 +1,25 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Outer White Pin Glow -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,20 C40.75,20 30,30.75 30,44 C30,61 54,88 54,88 C54,88 78,61 78,44 C78,30.75 67.25,20 54,20 Z" />
+    <!-- Inner Blue Pin Shape -->
+    <path
+        android:fillColor="#1565C0"
+        android:pathData="M54,24 C43,24 34,33 34,44 C34,58 54,81 54,81 C54,81 74,58 74,44 C74,33 65,24 54,24 Z" />
+    <!-- White Wrench Silhouette inside Pin -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,32 C49.58,32 46,35.58 46,40 C46,41.97 46.72,43.78 47.91,45.18 L44,49.09 L46.91,52 L50.82,48.09 C52.22,49.28 54.03,50 56,50 C60.42,50 64,46.42 64,42 C64,39.6 62.94,37.45 61.27,36 L58,39.27 L54.73,36 L58,32.73 C56.55,31.06 54.4,32 54,32 Z" />
+    <!-- Orange Dynamic Speed Accent -->
+    <path
+        android:fillColor="#FF8A00"
+        android:pathData="M66,62 L78,62 L74,68 L62,68 Z" />
+    <path
+        android:fillColor="#FF8A00"
+        android:pathData="M68,54 L82,54 L79,59 L65,59 Z" />
+</vector>

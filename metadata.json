@@ -1,0 +1,8 @@
+{
+  "name": "Remix M4chanic Customer",
+  "description": "Find, book, and track nearby mechanics with real-time updates and secure chat in this native Android customer application.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
