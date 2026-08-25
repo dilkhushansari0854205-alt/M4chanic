@@ -15,55 +15,96 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Validate Android project structure and Gradle wrapper
+      - name: Detect Android project directory
+        id: detect_project
         run: |
-          if [ ! -f "settings.gradle.kts" ] && [ ! -f "settings.gradle" ]; then
-            echo "Error: Android project root (settings.gradle / settings.gradle.kts) not found."
+          echo "Detecting Android project location..."
+
+          # Find directory containing gradlew wrapper script
+          WRAPPER_PATH=$(find . -maxdepth 3 -name "gradlew" -type f | head -n 1)
+
+          if [ -z "$WRAPPER_PATH" ]; then
+            echo "Error: Gradle wrapper script 'gradlew' could not be found anywhere in the repository!"
             exit 1
           fi
 
-          if [ ! -f "gradlew" ]; then
-            echo "Error: Gradle wrapper script 'gradlew' not found."
+          PROJECT_DIR=$(dirname "$WRAPPER_PATH")
+          echo "Detected project directory: $PROJECT_DIR"
+
+          if [ ! -f "$PROJECT_DIR/settings.gradle" ] && [ ! -f "$PROJECT_DIR/settings.gradle.kts" ]; then
+            echo "Error: Android project settings file (settings.gradle or settings.gradle.kts) missing in $PROJECT_DIR!"
             exit 1
           fi
 
-          if [ ! -d "app" ]; then
-            echo "Error: Application module directory 'app' not found."
+          # Locate application module directory containing build.gradle or build.gradle.kts
+          APP_MODULE=""
+          if [ -f "$PROJECT_DIR/app/build.gradle" ] || [ -f "$PROJECT_DIR/app/build.gradle.kts" ]; then
+            APP_MODULE="app"
+          else
+            # Fallback search for subdirectories containing android application plugin in build gradle files
+            APP_MODULE=$(find "$PROJECT_DIR" -maxdepth 2 -name "build.gradle*" -exec grep -l "com.android.application" {} + | head -n 1 | xargs -r dirname | xargs -r basename)
+          fi
+
+          if [ -z "$APP_MODULE" ]; then
+            echo "Error: Android application module could not be detected in $PROJECT_DIR!"
             exit 1
           fi
 
-      - name: Set up JDK 21
+          echo "Detected application module: $APP_MODULE"
+          echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
+          echo "app_module=$APP_MODULE" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Grant execute permission for Gradle wrapper
+        run: chmod +x "${{ steps.detect_project.outputs.project_dir }}/gradlew"
 
-      - name: Remove stale build caches
+      - name: Remove stale project-level Gradle and build caches
         run: |
-          echo "Removing stale project-level Gradle and application build caches..."
-          rm -rf .gradle
-          rm -rf app/build
+          PROJECT_DIR="${{ steps.detect_project.outputs.project_dir }}"
+          APP_MODULE="${{ steps.detect_project.outputs.app_module }}"
+          echo "Removing stale caches from $PROJECT_DIR..."
+          rm -rf "$PROJECT_DIR/.gradle"
+          rm -rf "$PROJECT_DIR/$APP_MODULE/build"
+          rm -rf "$PROJECT_DIR/build"
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace --no-daemon
+        run: |
+          cd "${{ steps.detect_project.outputs.project_dir }}"
+          ./gradlew assembleDebug --stacktrace --no-daemon
 
-      - name: Locate and verify generated APK
+      - name: Locate and verify generated debug APK
         id: locate_apk
         run: |
-          APK_PATHS=$(find app/build/outputs/apk -type f -name "*.apk" 2>/dev/null)
-          if [ -z "$APK_PATHS" ]; then
-            echo "Error: No APK files found in app/build/outputs/apk!"
+          PROJECT_DIR="${{ steps.detect_project.outputs.project_dir }}"
+          APP_MODULE="${{ steps.detect_project.outputs.app_module }}"
+
+          APK_SEARCH_PATH="$PROJECT_DIR/$APP_MODULE/build/outputs/apk"
+          if [ ! -d "$APK_SEARCH_PATH" ]; then
+            APK_SEARCH_PATH="$PROJECT_DIR"
+          fi
+
+          echo "Searching for generated debug APK in $APK_SEARCH_PATH..."
+          APK_FILES=$(find "$APK_SEARCH_PATH" -type f -name "*.apk" 2>/dev/null)
+
+          if [ -z "$APK_FILES" ]; then
+            echo "Error: No generated debug APK file found!"
             exit 1
           fi
-          echo "Found generated APK(s):"
-          echo "$APK_PATHS"
+
+          echo "Successfully verified generated APK file(s):"
+          echo "$APK_FILES"
+
+          # Pass the discovered APK path pattern to output
+          echo "apk_path=${APK_SEARCH_PATH}/**/*.apk" >> "$GITHUB_OUTPUT"
 
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-app-debug-apk
-          path: app/build/outputs/apk/**/*.apk
+          path: ${{ steps.locate_apk.outputs.apk_path }}
           if-no-files-found: error
